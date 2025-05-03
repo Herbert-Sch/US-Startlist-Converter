@@ -1,0 +1,20 @@
+{
+  "name": "hls-stream-speech-recognition-server",
+  "version": "1.0.0",
+  "description": "Server für die Spracherkennung aus HLS-Streams",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "node-fetch": "^2.6.9",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+} 
