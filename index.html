@@ -1,59 +1,619 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+    <title>US Startlist Converter</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HLS Stream Captions and Translation</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f8f8f8;
+            color: white;
+            background-color: #8B0000;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: #333;
+        }
+        h1 {
+            color: #8B0000;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #8B0000;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            min-height: 200px;
+            font-family: monospace;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #8B0000;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #6d0000;
+        }
+        .error {
+            color: #8B0000;
+            margin-bottom: 15px;
+            font-weight: bold;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            color: green;
+            margin-bottom: 15px;
+        }
+        .workflow {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #8B0000;
+        }
+        .workflow h3 {
+            margin-top: 0;
+            color: #8B0000;
+        }
+        .workflow ol {
+            padding-left: 20px;
+        }
+        .example {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            color: white;
+            font-size: 0.9em;
+        }
+        .platform-info {
+            display: none;
+        }
+        #download-link {
+            display: block;
+            margin-top: 15px;
+            text-align: center;
+            padding: 10px;
+            background-color: #f2f2f2;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            display: none;
+        }
+        #download-link:hover {
+            background-color: #e6e6e6;
+        }
+        #spinner {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .screenshot {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .screenshot img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .screenshot-caption {
+            margin-top: 8px;
+            font-style: italic;
+            color: #666;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo-container img {
+            max-width: 200px;
+            height: auto;
+            filter: brightness(0) invert(1); /* Makes the logo white */
+        }
+    </style>
 </head>
 <body>
+    <div class="logo-container">
+        <img src="https://www.clipmyhorse.tv/res/cmh_logo-f907a0b397b53bd08f425bfe99fd47ee.svg" alt="ClipMyHorse.TV Logo">
+    </div>
+    
     <div class="container">
-        <div class="video-container">
-            <video id="video-player" controls autoplay></video>
-            <div class="controls">
-                <div class="stream-input">
-                    <label for="server-id">Server ID:</label>
-                    <input type="text" id="server-id" placeholder="e.g. c289dcc0" value="c289dcc0">
+        <h1>US Startlist Converter</h1>
+        <p class="subtitle">created by Herbert Scholz</p>
+        
+        <div id="error-message" class="error"></div>
+        
+        <form id="converter-form">
+            <label for="platform">Choose Platform:</label>
+            <select id="platform" name="platform" required>
+                <option value="foxvillage">Foxvillage</option>
+                <option value="horseshowing">HorseShowing.com</option>
+                <option value="horseshowsonline">HorseShowsOnline</option>
+            </select>
+            
+            <label for="class_id">Class ID (for filename):</label>
+            <input type="text" id="class_id" name="class_id" placeholder="e.g. 223" required>
+            
+            <label for="table_data">Paste Table Data:</label>
+            <textarea id="table_data" name="table_data" placeholder="Copy and paste the table data here..." required></textarea>
+            
+            <button type="submit">Create CSV</button>
+        </form>
+        
+        <div id="spinner">Processing data...</div>
+        <a id="download-link" href="#" download="">Download CSV</a>
+        
+        <div class="workflow">
+            <h3>Instructions:</h3>
+            
+            <div id="info-foxvillage" class="platform-info">
+                <ol>
+                    <li>Go to the Foxvillage start list</li>
+                    <li>Select the entire table (including header) as shown below:</li>
+                </ol>
+                
+                <div class="screenshot">
+                    <img src="img/foxvillage_screenshot.png" alt="Foxvillage selection example">
+                    <div class="screenshot-caption">The red-marked area shows which part of the Foxvillage page to select and copy</div>
                 </div>
-                <div class="stream-url-container">
-                    <input type="text" id="stream-url" placeholder="HLS Stream URL" value="https://ingest-[SERVER-ID].clipmyhorse.tv:9443/ingest/outstream_low/playlist.m3u8" readonly>
+                
+                <ol start="3">
+                    <li>Paste the copied text into the field above</li>
+                    <li>Enter the class ID for the filename</li>
+                    <li>Click "Create CSV"</li>
+                    <li>Click the download link to download the CSV</li>
+                    <li>Import the CSV into your cockpit using the "EquiScore DE" template</li>
+                </ol>
+                
+                <div class="example">
+                    <p><strong>Example Foxvillage data format:</strong></p>
+                    <pre>Results
+Ride Time	Entry #	Rider	Ctzn	Horse	Stat/Div	Term	Test	Verified
+12:30:00 PM	581	Kristen Browning	USA	Don Rudolfo 10	Adult Amateur	No	FEI Intermediate I 2022	No</pre>
                 </div>
-                <button id="load-stream">Load Stream</button>
-                <div class="help-text">
-                    <p><strong>Important:</strong> Depending on the browser, either the audio is recognized directly from the stream (preferred) or the microphone is used to capture the audio.</p>
+            </div>
+            
+            <div id="info-horseshowing" class="platform-info">
+                <ol>
+                    <li>Go to the HorseShowing.com start list</li>
+                    <li>Copy the start list as shown below:</li>
+                </ol>
+                
+                <div class="screenshot">
+                    <img src="img/horseshowing_screenshot.png" alt="HorseShowing.com selection example">
+                    <div class="screenshot-caption">The red-marked area shows which part of the HorseShowing.com page to select and copy</div>
                 </div>
-                <div class="language-selectors">
-                    <select id="source-language">
-                        <option value="auto">Auto-detect</option>
-                        <option value="de-DE">German</option>
-                        <option value="en-US">English</option>
-                        <option value="fr-FR">French</option>
-                        <option value="es-ES">Spanish</option>
-                        <option value="it-IT">Italian</option>
-                    </select>
-                    <select id="target-language">
-                        <option value="de">German</option>
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="es">Spanish</option>
-                        <option value="it">Italian</option>
-                    </select>
+                
+                <ol start="3">
+                    <li>Paste the copied text into the field above</li>
+                    <li>Enter the class ID for the filename</li>
+                    <li>Click "Create CSV"</li>
+                    <li>Click the download link to download the CSV</li>
+                    <li>Import the CSV into your cockpit using the "EquiScore DE" template</li>
+                </ol>
+            </div>
+            
+            <div id="info-horseshowsonline" class="platform-info">
+                <ol>
+                    <li>Go to the HorseShowsOnline start list</li>
+                    <li>Copy the table with the entries as shown below:</li>
+                </ol>
+                
+                <div class="screenshot">
+                    <img src="img/horseshowsonline_screenshot.png" alt="HorseShowsOnline selection example">
+                    <div class="screenshot-caption">The red-marked area shows which part of the HorseShowsOnline page to select and copy</div>
                 </div>
-                <button id="start-recognition" class="action-button">Start Speech Recognition</button>
+                
+                <ol start="3">
+                    <li>Paste the copied text into the field above</li>
+                    <li>Enter the class ID for the filename</li>
+                    <li>Click "Create CSV"</li>
+                    <li>Click the download link to download the CSV</li>
+                    <li>Import the CSV into your cockpit using the "EquiScore DE" template</li>
+                </ol>
+                
+                <div class="example">
+                    <p><strong>Example HorseShowsOnline data format:</strong></p>
+                    <pre>Start Pos	 Ascending
+Entry No	 
+Horse	 
+Rider	 
+Owner	 
+Trainer	 
+1	317	LEXINGTONIAN	SULTAN, NISSA	SULTAN SHOW HORSES LLC, .	SHIFLET, MATT</pre>
+                </div>
             </div>
         </div>
-        <div class="transcript-container">
-            <div id="transcript"></div>
-        </div>
     </div>
+    
+    <footer>
+    </footer>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="js/videoPlayer.js"></script>
-    <script src="js/speechRecognition.js"></script>
-    <script src="js/translation.js"></script>
-    <script src="js/audioProcessor.js"></script>
-    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show platform info
+            const platformSelect = document.getElementById('platform');
+            const infoElements = document.querySelectorAll('.platform-info');
+            
+            function updateVisibleInfo() {
+                const selectedPlatform = platformSelect.value;
+                infoElements.forEach(el => {
+                    if (el.id === 'info-' + selectedPlatform) {
+                        el.style.display = 'block';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+            }
+            
+            platformSelect.addEventListener('change', updateVisibleInfo);
+            updateVisibleInfo(); // Initialize
+            
+            // Form processing
+            const form = document.getElementById('converter-form');
+            const errorMessage = document.getElementById('error-message');
+            const downloadLink = document.getElementById('download-link');
+            const spinner = document.getElementById('spinner');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const platform = document.getElementById('platform').value;
+                const classId = document.getElementById('class_id').value;
+                const tableData = document.getElementById('table_data').value;
+                
+                // Validation
+                if (!tableData.trim()) {
+                    showError('Please enter table data.');
+                    return;
+                }
+                
+                if (!classId.trim()) {
+                    showError('Please enter a class ID.');
+                    return;
+                }
+                
+                // Reset error message
+                errorMessage.style.display = 'none';
+                downloadLink.style.display = 'none';
+                spinner.style.display = 'block';
+                
+                // Process based on platform
+                let entries = [];
+                try {
+                    if (platform === 'foxvillage') {
+                        entries = processFoxvillage(tableData);
+                    } else if (platform === 'horseshowing') {
+                        entries = processHorseShowing(tableData);
+                    } else if (platform === 'horseshowsonline') {
+                        entries = processHorseShowsOnline(tableData);
+                    } else {
+                        throw new Error('Invalid platform selected.');
+                    }
+                    
+                    if (entries.length === 0) {
+                        throw new Error('No data found. Please check the input format.');
+                    }
+                    
+                    // Create CSV and provide download
+                    const csv = createCSV(entries);
+                    createDownloadLink(csv, classId);
+                    
+                } catch (error) {
+                    showError(error.message);
+                } finally {
+                    spinner.style.display = 'none';
+                }
+            });
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+            
+            function createDownloadLink(csvContent, classId) {
+                // Add BOM for UTF-8
+                const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                downloadLink.href = url;
+                downloadLink.download = `${classId}.csv`;
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = `Download ${classId}.csv`;
+            }
+            
+            // Data processing for Foxvillage
+            function processFoxvillage(tableData) {
+                // Split into lines and remove empty lines
+                const lines = tableData.split('\n').filter(line => line.trim());
+                
+                const dataRows = [];
+                let headerPassed = false;
+                
+                // Skip header rows
+                for (const line of lines) {
+                    if (!headerPassed && 
+                        ((line.includes('Entry') || line.includes('Entry #')) && 
+                         line.includes('Rider') && 
+                         line.includes('Horse'))) {
+                        headerPassed = true;
+                        continue;
+                    }
+                    
+                    if (!headerPassed) {
+                        continue;
+                    }
+                    
+                    dataRows.push(line);
+                }
+                
+                // Process data rows
+                const entries = [];
+                for (const row of dataRows) {
+                    // Split by tabs or multiple spaces
+                    const parts = row.split(/\t+|\s{2,}/);
+                    
+                    let entryNum = '';
+                    let riderName = '';
+                    let horseName = '';
+                    
+                    // Find entry number (usually a number)
+                    for (let i = 0; i < parts.length; i++) {
+                        const part = parts[i].trim();
+                        if (/^\d+$/.test(part)) {
+                            entryNum = part;
+                            
+                            // Rider is typically after the entry number
+                            if (i+1 < parts.length) {
+                                riderName = parts[i+1].trim();
+                            }
+                            
+                            // Look for horse
+                            for (let j = i+2; j < parts.length; j++) {
+                                // Skip nationality fields (often 3-letter codes)
+                                if (parts[j].trim().length === 3 && /^[A-Za-z]+$/.test(parts[j].trim())) {
+                                    continue;
+                                }
+                                horseName = parts[j].trim();
+                                break;
+                            }
+                            break;
+                        }
+                    }
+                    
+                    // Alternative detection for time formats
+                    if (!entryNum && parts.length >= 3) {
+                        // If first part looks like a time (contains : or AM/PM)
+                        if (parts[0].includes(':') || parts[0].toUpperCase().includes('AM') || parts[0].toUpperCase().includes('PM')) {
+                            entryNum = parts[1].trim();
+                            riderName = parts[2].trim();
+                            
+                            if (parts.length >= 5) {
+                                horseName = parts[4].trim();
+                            } else if (parts.length >= 4) {
+                                horseName = parts[3].trim();
+                            }
+                        }
+                    }
+                    
+                    // Add entry if we have enough information
+                    if (entryNum && (riderName || horseName)) {
+                        entries.push({
+                            'KOPFNR': entryNum,
+                            'PFNAM': horseName,
+                            'NAME': riderName,
+                            'PFALTER': '',
+                            'TEAM': '',
+                            'VNAME': '',
+                            'STARTNUM': '',
+                            'STARTDS': '',
+                            'SEX': '',
+                            'FARBE': '',
+                            'ZUCHHER': '',
+                            'VNAM': '',
+                            'VSCHL': '',
+                            'MOTHER': '',
+                            'MNAM': '',
+                            'MSCHL': '',
+                            'ZNAME': '',
+                            'ISOSCHL': '',
+                            'FEINR': ''
+                        });
+                    }
+                }
+                
+                return entries;
+            }
+            
+            // Data processing for HorseShowing
+            function processHorseShowing(tableData) {
+                const lines = tableData.trim().split('\n');
+                const entries = [];
+                
+                // Skip header and parse data
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split('\t');
+                    if (parts.length === 5) {
+                        entries.push({
+                            'KOPFNR': parts[1],
+                            'PFNAM': parts[2],
+                            'NAME': parts[3],
+                            'PFALTER': '',
+                            'TEAM': '',
+                            'VNAME': '',
+                            'STARTNUM': '',
+                            'STARTDS': '',
+                            'SEX': '',
+                            'FARBE': '',
+                            'ZUCHHER': '',
+                            'VNAM': '',
+                            'VSCHL': '',
+                            'MOTHER': '',
+                            'MNAM': '',
+                            'MSCHL': '',
+                            'ZNAME': '',
+                            'ISOSCHL': '',
+                            'FEINR': ''
+                        });
+                    }
+                }
+                
+                return entries;
+            }
+            
+            // Data processing for HorseShowsOnline
+            function processHorseShowsOnline(tableData) {
+                const lines = tableData.trim().split('\n');
+                const entries = [];
+                
+                // Skip header rows
+                const dataRows = [];
+                let headerFound = false;
+                
+                for (const line of lines) {
+                    if (!headerFound && 
+                        line.includes('Start Pos') && 
+                        line.includes('Entry No') && 
+                        line.includes('Horse') && 
+                        line.includes('Rider')) {
+                        headerFound = true;
+                        continue;
+                    }
+                    
+                    // Skip header rows
+                    if (!headerFound && !/^\d+\s+\d+\s+/.test(line)) {
+                        continue;
+                    }
+                    
+                    // Add data rows
+                    if (/^\d+\s+\d+\s+/.test(line) || headerFound) {
+                        dataRows.push(line);
+                    }
+                }
+                
+                // Process data rows
+                for (const row of dataRows) {
+                    // Split by tabs or multiple spaces
+                    const parts = row.trim().split(/\t+|\s{2,}/).filter(p => p.trim());
+                    
+                    if (parts.length >= 4) {
+                        // In HorseShowsOnline format:
+                        // parts[0] = Start Pos
+                        // parts[1] = Entry No
+                        // parts[2] = Horse
+                        // parts[3] = Rider
+                        const entryNum = parts[1].trim();
+                        const horseName = parts[2].trim();
+                        const riderName = parts[3].trim();
+                        
+                        entries.push({
+                            'KOPFNR': entryNum,
+                            'PFNAM': horseName,
+                            'NAME': riderName,
+                            'PFALTER': '',
+                            'TEAM': '',
+                            'VNAME': '',
+                            'STARTNUM': '',
+                            'STARTDS': '',
+                            'SEX': '',
+                            'FARBE': '',
+                            'ZUCHHER': '',
+                            'VNAM': '',
+                            'VSCHL': '',
+                            'MOTHER': '',
+                            'MNAM': '',
+                            'MSCHL': '',
+                            'ZNAME': '',
+                            'ISOSCHL': '',
+                            'FEINR': ''
+                        });
+                    }
+                }
+                
+                return entries;
+            }
+            
+            // Create CSV file
+            function createCSV(entries) {
+                const fieldnames = ['KOPFNR', 'PFNAM', 'NAME', 'PFALTER', 'TEAM', 'VNAME', 'STARTNUM', 'STARTDS', 'SEX', 
+                                  'FARBE', 'ZUCHHER', 'VNAM', 'VSCHL', 'MOTHER', 'MNAM', 'MSCHL', 'ZNAME', 'ISOSCHL', 'FEINR'];
+                
+                // CSV header
+                let csvContent = fieldnames.join(',') + '\n';
+                
+                // CSV data
+                for (const entry of entries) {
+                    const row = fieldnames.map(field => {
+                        // Add quotes if value contains commas
+                        let value = entry[field] || '';
+                        if (value.includes(',')) {
+                            value = `"${value}"`;
+                        }
+                        return value;
+                    });
+                    
+                    csvContent += row.join(',') + '\n';
+                }
+                
+                return csvContent;
+            }
+        });
+    </script>
 </body>
 </html> 
