@@ -636,10 +636,55 @@ DENNIS DIJKERMAN
                 
                 // Skip header rows
                 let dataStarted = false;
-                let currentOrder = null; // start order
+                let currentOrder = null; // start order (for "Order to Go" format)
                 let currentHeadNum = null; // Kopfnummer from horse line
                 let currentHorse = null;
                 let currentRider = null;
+                let expectingRider = false; // Track if we're expecting a rider after horse
+                
+                // Helper function to save current entry
+                function saveCurrentEntry() {
+                    if (currentHorse && currentRider) {
+                        // Determine KOPFNR: 
+                        // - In "Order to Go" format: use currentHeadNum from horse line (e.g. "1565" from "1565 - CHINO 29")
+                        // - In "Entries" format: use currentHeadNum from horse line (e.g. "731" from "731 - FORTSIDE CANDY FLEX")
+                        // - If no headNum but we have order (shouldn't happen normally), use order as fallback
+                        const kopfnr = currentHeadNum || currentOrder || '';
+                        
+                        // STARTNUM: only set in "Order to Go" format (when currentOrder is set)
+                        // In "Entries" format, currentOrder will be null, so STARTNUM will be empty
+                        const startnum = currentOrder || '';
+                        
+                        entries.push({
+                            'KOPFNR': kopfnr,
+                            'PFNAM': currentHorse,
+                            'NAME': currentRider,
+                            'PFALTER': '',
+                            'TEAM': '',
+                            'VNAME': '',
+                            'STARTNUM': startnum,
+                            'STARTDS': '',
+                            'SEX': '',
+                            'FARBE': '',
+                            'ZUCHHER': '',
+                            'VNAM': '',
+                            'VSCHL': '',
+                            'MOTHER': '',
+                            'MNAM': '',
+                            'MSCHL': '',
+                            'ZNAME': '',
+                            'ISOSCHL': '',
+                            'FEINR': ''
+                        });
+                        
+                        // Reset for next entry
+                        currentOrder = null;
+                        currentHeadNum = null;
+                        currentHorse = null;
+                        currentRider = null;
+                        expectingRider = false;
+                    }
+                }
                 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i].trim();
@@ -651,7 +696,8 @@ DENNIS DIJKERMAN
                     
                     // Skip header lines
                     if (!dataStarted) {
-                        if (line.includes('Order') && line.includes('Horse') && line.includes('Rider')) {
+                        // Check for header row (both formats have "Horse" and "Rider")
+                        if (line.includes('Horse') && line.includes('Rider')) {
                             dataStarted = true;
                             continue;
                         }
@@ -659,11 +705,11 @@ DENNIS DIJKERMAN
                         if (line.includes('F | T') || line.includes('Jump Off')) {
                             continue;
                         }
-                        // If we see a line with number and " - ", we're in the data (new format without order number)
+                        // If we see a line with number and " - ", we're in the data (Entries format)
                         if (/^\d+\s*-\s*/.test(line)) {
                             dataStarted = true;
                         }
-                        // If we see just a number, we're probably in the data (old format with order number)
+                        // If we see just a number, we're probably in the data (Order to Go format)
                         else if (/^\d+$/.test(line)) {
                             dataStarted = true;
                         } else {
@@ -672,65 +718,18 @@ DENNIS DIJKERMAN
                     }
                     
                     // Now processing data
-                    // Check if line is just a number (order number - old format)
+                    // Check if line is just a number (order number - "Order to Go" format)
                     if (/^\d+$/.test(line)) {
                         // Save previous entry if we have all data
-                        if ((currentOrder || currentHeadNum) && currentHorse && currentRider) {
-                            entries.push({
-                                'KOPFNR': currentHeadNum || currentOrder,
-                                'PFNAM': currentHorse,
-                                'NAME': currentRider,
-                                'PFALTER': '',
-                                'TEAM': '',
-                                'VNAME': '',
-                                'STARTNUM': currentOrder || '',
-                                'STARTDS': '',
-                                'SEX': '',
-                                'FARBE': '',
-                                'ZUCHHER': '',
-                                'VNAM': '',
-                                'VSCHL': '',
-                                'MOTHER': '',
-                                'MNAM': '',
-                                'MSCHL': '',
-                                'ZNAME': '',
-                                'ISOSCHL': '',
-                                'FEINR': ''
-                            });
-                        }
+                        saveCurrentEntry();
                         
-                        // Start new entry
+                        // Start new entry with order number
                         currentOrder = line;
-                        currentHeadNum = null;
-                        currentHorse = null;
-                        currentRider = null;
                     }
-                    // Check if line looks like a horse (contains " - " or starts with number and " - ")
-                    else if (line.includes(' - ')) {
-                        // Save previous entry if we have all data (for format without order number)
-                        if (currentHeadNum && currentHorse && currentRider && !currentOrder) {
-                            entries.push({
-                                'KOPFNR': currentHeadNum,
-                                'PFNAM': currentHorse,
-                                'NAME': currentRider,
-                                'PFALTER': '',
-                                'TEAM': '',
-                                'VNAME': '',
-                                'STARTNUM': '',
-                                'STARTDS': '',
-                                'SEX': '',
-                                'FARBE': '',
-                                'ZUCHHER': '',
-                                'VNAM': '',
-                                'VSCHL': '',
-                                'MOTHER': '',
-                                'MNAM': '',
-                                'MSCHL': '',
-                                'ZNAME': '',
-                                'ISOSCHL': '',
-                                'FEINR': ''
-                            });
-                        }
+                    // Check if line looks like a horse (contains " - " and starts with number)
+                    else if (/^\d+\s*-\s*/.test(line)) {
+                        // Save previous entry if we have all data
+                        saveCurrentEntry();
                         
                         // Extract Kopfnummer and horse name, e.g. "642 - CUBA LIBRE OS" -> Kopfnummer=642, Horse=CUBA LIBRE OS
                         const parts = line.split(/\s*-\s*/);
@@ -739,49 +738,36 @@ DENNIS DIJKERMAN
                             if (/^\d+$/.test(headCandidate)) {
                                 currentHeadNum = headCandidate;
                                 currentHorse = parts.slice(1).join(' - ').trim();
+                                expectingRider = true;
                             } else {
                                 currentHorse = line.trim();
+                                expectingRider = true;
                             }
                         } else {
                             currentHorse = line.trim();
+                            expectingRider = true;
                         }
-                        // Reset rider for new entry
-                        currentRider = null;
                     }
                     // Check if line is "-" (missing data, skip)
                     else if (line === '-') {
+                        // Just skip "-" lines, keep expecting rider if we don't have one yet
                         continue;
                     }
-                    // Otherwise it's likely the rider name
-                    else if (currentHorse && !currentRider && line !== '-') {
+                    // Otherwise it's likely the rider name (if we have a horse but no rider yet)
+                    else if (currentHorse && !currentRider) {
+                        // This should be the rider name
                         currentRider = line;
+                        expectingRider = false;
+                    }
+                    // If we already have horse and rider, and see another non-dash line, it might be additional data to ignore
+                    else if (currentHorse && currentRider) {
+                        // Already have complete entry, ignore this line (might be additional round data)
+                        continue;
                     }
                 }
                 
                 // Don't forget the last entry
-                if ((currentOrder || currentHeadNum) && currentHorse && currentRider) {
-                    entries.push({
-                        'KOPFNR': currentHeadNum || currentOrder,
-                        'PFNAM': currentHorse,
-                        'NAME': currentRider,
-                        'PFALTER': '',
-                        'TEAM': '',
-                        'VNAME': '',
-                        'STARTNUM': currentOrder || '',
-                        'STARTDS': '',
-                        'SEX': '',
-                        'FARBE': '',
-                        'ZUCHHER': '',
-                        'VNAM': '',
-                        'VSCHL': '',
-                        'MOTHER': '',
-                        'MNAM': '',
-                        'MSCHL': '',
-                        'ZNAME': '',
-                        'ISOSCHL': '',
-                        'FEINR': ''
-                    });
-                }
+                saveCurrentEntry();
                 
                 return entries;
             }
