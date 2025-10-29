@@ -659,8 +659,12 @@ DENNIS DIJKERMAN
                         if (line.includes('F | T') || line.includes('Jump Off')) {
                             continue;
                         }
-                        // If we see a number, we're probably in the data
-                        if (/^\d+$/.test(line)) {
+                        // If we see a line with number and " - ", we're in the data (new format without order number)
+                        if (/^\d+\s*-\s*/.test(line)) {
+                            dataStarted = true;
+                        }
+                        // If we see just a number, we're probably in the data (old format with order number)
+                        else if (/^\d+$/.test(line)) {
                             dataStarted = true;
                         } else {
                             continue;
@@ -668,18 +672,18 @@ DENNIS DIJKERMAN
                     }
                     
                     // Now processing data
-                    // Check if line is just a number (order number)
+                    // Check if line is just a number (order number - old format)
                     if (/^\d+$/.test(line)) {
                         // Save previous entry if we have all data
-                        if (currentOrder && currentHeadNum && currentHorse && currentRider) {
+                        if ((currentOrder || currentHeadNum) && currentHorse && currentRider) {
                             entries.push({
-                                'KOPFNR': currentHeadNum,
+                                'KOPFNR': currentHeadNum || currentOrder,
                                 'PFNAM': currentHorse,
                                 'NAME': currentRider,
                                 'PFALTER': '',
                                 'TEAM': '',
                                 'VNAME': '',
-                                'STARTNUM': currentOrder,
+                                'STARTNUM': currentOrder || '',
                                 'STARTDS': '',
                                 'SEX': '',
                                 'FARBE': '',
@@ -703,8 +707,33 @@ DENNIS DIJKERMAN
                     }
                     // Check if line looks like a horse (contains " - " or starts with number and " - ")
                     else if (line.includes(' - ')) {
-                        // Extract Kopfnummer and horse name, e.g. "1565 - CHINO 29" -> Kopfnummer=1565, Horse=CHINO 29
-                        const parts = line.split(' - ');
+                        // Save previous entry if we have all data (for format without order number)
+                        if (currentHeadNum && currentHorse && currentRider && !currentOrder) {
+                            entries.push({
+                                'KOPFNR': currentHeadNum,
+                                'PFNAM': currentHorse,
+                                'NAME': currentRider,
+                                'PFALTER': '',
+                                'TEAM': '',
+                                'VNAME': '',
+                                'STARTNUM': '',
+                                'STARTDS': '',
+                                'SEX': '',
+                                'FARBE': '',
+                                'ZUCHHER': '',
+                                'VNAM': '',
+                                'VSCHL': '',
+                                'MOTHER': '',
+                                'MNAM': '',
+                                'MSCHL': '',
+                                'ZNAME': '',
+                                'ISOSCHL': '',
+                                'FEINR': ''
+                            });
+                        }
+                        
+                        // Extract Kopfnummer and horse name, e.g. "642 - CUBA LIBRE OS" -> Kopfnummer=642, Horse=CUBA LIBRE OS
+                        const parts = line.split(/\s*-\s*/);
                         if (parts.length > 1) {
                             const headCandidate = parts[0].trim();
                             if (/^\d+$/.test(headCandidate)) {
@@ -716,6 +745,8 @@ DENNIS DIJKERMAN
                         } else {
                             currentHorse = line.trim();
                         }
+                        // Reset rider for new entry
+                        currentRider = null;
                     }
                     // Check if line is "-" (missing data, skip)
                     else if (line === '-') {
@@ -728,15 +759,15 @@ DENNIS DIJKERMAN
                 }
                 
                 // Don't forget the last entry
-                if (currentOrder && currentHeadNum && currentHorse && currentRider) {
+                if ((currentOrder || currentHeadNum) && currentHorse && currentRider) {
                     entries.push({
-                        'KOPFNR': currentHeadNum,
+                        'KOPFNR': currentHeadNum || currentOrder,
                         'PFNAM': currentHorse,
                         'NAME': currentRider,
                         'PFALTER': '',
                         'TEAM': '',
                         'VNAME': '',
-                        'STARTNUM': currentOrder,
+                        'STARTNUM': currentOrder || '',
                         'STARTDS': '',
                         'SEX': '',
                         'FARBE': '',
