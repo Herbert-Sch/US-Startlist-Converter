@@ -184,6 +184,7 @@
                 <option value="foxvillage">Foxvillage</option>
                 <option value="horseshowing">HorseShowing.com</option>
                 <option value="horseshowsonline">HorseShowsOnline</option>
+                <option value="showgroundslive">ShowGroundsLive</option>
             </select>
             
             <label for="class_id">Class ID (for filename):</label>
@@ -278,6 +279,43 @@ Trainer
 1	317	LEXINGTONIAN	SULTAN, NISSA	SULTAN SHOW HORSES LLC, .	SHIFLET, MATT</pre>
                 </div>
             </div>
+            
+            <div id="info-showgroundslive" class="platform-info">
+                <ol>
+                    <li>Go to the ShowGroundsLive start list</li>
+                    <li>Copy the start list table as shown below:</li>
+                </ol>
+                
+                <div class="screenshot">
+                    <img src="img/showgrounds_screenshot.png" alt="ShowGroundsLive selection example">
+                    <div class="screenshot-caption">The red-marked area shows which part of the ShowGroundsLive page to select and copy</div>
+                </div>
+                
+                <ol start="3">
+                    <li>Paste the copied text into the field above</li>
+                    <li>Enter the class ID for the filename</li>
+                    <li>Click "Create CSV"</li>
+                    <li>Click the download link to download the CSV</li>
+                    <li>Import the CSV into your cockpit using the "EquiScore DE" template</li>
+                </ol>
+                
+                <div class="example">
+                    <p><strong>Example ShowGroundsLive data format:</strong></p>
+                    <pre>Order		Horse	Rider	Round 1
+F | T	Jump Off
+F | T
+1
+1565 - CHINO 29
+ZOE BROWN
+-
+-
+2
+1559 - DOMINATOR STAR Z
+DENNIS DIJKERMAN
+-
+-</pre>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -342,6 +380,8 @@ Trainer
                         entries = processHorseShowing(tableData);
                     } else if (platform === 'horseshowsonline') {
                         entries = processHorseShowsOnline(tableData);
+                    } else if (platform === 'showgroundslive') {
+                        entries = processShowGroundsLive(tableData);
                     } else {
                         throw new Error('Invalid platform selected.');
                     }
@@ -584,6 +624,132 @@ Trainer
                             'FEINR': ''
                         });
                     }
+                }
+                
+                return entries;
+            }
+            
+            // Data processing for ShowGroundsLive
+            function processShowGroundsLive(tableData) {
+                const lines = tableData.trim().split('\n');
+                const entries = [];
+                
+                // Skip header rows
+                let dataStarted = false;
+                let currentOrder = null; // start order
+                let currentHeadNum = null; // Kopfnummer from horse line
+                let currentHorse = null;
+                let currentRider = null;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // Skip empty lines
+                    if (!line) {
+                        continue;
+                    }
+                    
+                    // Skip header lines
+                    if (!dataStarted) {
+                        if (line.includes('Order') && line.includes('Horse') && line.includes('Rider')) {
+                            dataStarted = true;
+                            continue;
+                        }
+                        // Skip lines with "F | T" or "Jump Off"
+                        if (line.includes('F | T') || line.includes('Jump Off')) {
+                            continue;
+                        }
+                        // If we see a number, we're probably in the data
+                        if (/^\d+$/.test(line)) {
+                            dataStarted = true;
+                        } else {
+                            continue;
+                        }
+                    }
+                    
+                    // Now processing data
+                    // Check if line is just a number (order number)
+                    if (/^\d+$/.test(line)) {
+                        // Save previous entry if we have all data
+                        if (currentOrder && currentHeadNum && currentHorse && currentRider) {
+                            entries.push({
+                                'KOPFNR': currentHeadNum,
+                                'PFNAM': currentHorse,
+                                'NAME': currentRider,
+                                'PFALTER': '',
+                                'TEAM': '',
+                                'VNAME': '',
+                                'STARTNUM': currentOrder,
+                                'STARTDS': '',
+                                'SEX': '',
+                                'FARBE': '',
+                                'ZUCHHER': '',
+                                'VNAM': '',
+                                'VSCHL': '',
+                                'MOTHER': '',
+                                'MNAM': '',
+                                'MSCHL': '',
+                                'ZNAME': '',
+                                'ISOSCHL': '',
+                                'FEINR': ''
+                            });
+                        }
+                        
+                        // Start new entry
+                        currentOrder = line;
+                        currentHeadNum = null;
+                        currentHorse = null;
+                        currentRider = null;
+                    }
+                    // Check if line looks like a horse (contains " - " or starts with number and " - ")
+                    else if (line.includes(' - ')) {
+                        // Extract Kopfnummer and horse name, e.g. "1565 - CHINO 29" -> Kopfnummer=1565, Horse=CHINO 29
+                        const parts = line.split(' - ');
+                        if (parts.length > 1) {
+                            const headCandidate = parts[0].trim();
+                            if (/^\d+$/.test(headCandidate)) {
+                                currentHeadNum = headCandidate;
+                                currentHorse = parts.slice(1).join(' - ').trim();
+                            } else {
+                                currentHorse = line.trim();
+                            }
+                        } else {
+                            currentHorse = line.trim();
+                        }
+                    }
+                    // Check if line is "-" (missing data, skip)
+                    else if (line === '-') {
+                        continue;
+                    }
+                    // Otherwise it's likely the rider name
+                    else if (currentHorse && !currentRider && line !== '-') {
+                        currentRider = line;
+                    }
+                }
+                
+                // Don't forget the last entry
+                if (currentOrder && currentHeadNum && currentHorse && currentRider) {
+                    entries.push({
+                        'KOPFNR': currentHeadNum,
+                        'PFNAM': currentHorse,
+                        'NAME': currentRider,
+                        'PFALTER': '',
+                        'TEAM': '',
+                        'VNAME': '',
+                        'STARTNUM': currentOrder,
+                        'STARTDS': '',
+                        'SEX': '',
+                        'FARBE': '',
+                        'ZUCHHER': '',
+                        'VNAM': '',
+                        'VSCHL': '',
+                        'MOTHER': '',
+                        'MNAM': '',
+                        'MSCHL': '',
+                        'ZNAME': '',
+                        'ISOSCHL': '',
+                        'FEINR': ''
+                    });
                 }
                 
                 return entries;
